@@ -21,13 +21,13 @@ def ejecutar_descanso(nombre, segundos):
     for t in range(segundos, -1, -1):
         placeholder.subheader(f"⏳ Descanso: {t}s")
         time.sleep(1)
-    placeholder.success(f"¡Serie de {nombre} terminada!")
+    placeholder.success(f"¡Serie terminada!")
     st.balloons()
     if nombre not in st.session_state.completados:
         st.session_state.completados.append(nombre)
         st.rerun()
 
-# --- RUTINA ACTUALIZADA ---
+# --- RUTINA Y NOMBRES DE ARCHIVOS ---
 rutinas = {
     "Lunes": [
         ("Press banca (3x8-10)", 90, "banca.mp4"),
@@ -54,7 +54,6 @@ rutinas = {
     "Jueves": [
         ("Elevaciones laterales (3x12)", 45, "laterales.mp4"),
         ("Pájaros (2x12)", 60, "pajaros.mp4"),
-        ("Curl bíceps barra (2x10)", 60, "curl_barra.mp4"),
         ("Fondos con banca (2x12)", 60, "fondos_banca.mp4"),
         ("Curl concentrado (1x12)", 60, "concentrado.mp4"),
         ("Plancha lateral (2x30s)", 45, "plancha_lat.mp4"),
@@ -74,31 +73,31 @@ dia_actual = dias[hoy.weekday()]
 
 st.subheader(f"Hoy es {dia_actual}")
 
+# --- DETECTOR DE ARCHIVOS REALES (Para diagnóstico) ---
+archivos_en_github = os.listdir('.')
+
 if dia_actual in rutinas:
     for ej, sec, archivo in rutinas[dia_actual]:
         ya_hecho = ej in st.session_state.completados
+        
         with st.expander(f"🏋️ {ej}"):
+            # Lógica de detección inteligente
             if os.path.exists(archivo):
                 st.video(archivo)
             else:
-                st.info(f"Sube '{archivo}' para ver la técnica.")
-            
+                st.error(f"❌ No se encuentra el archivo: **{archivo}**")
+                st.write("🔍 **¿Qué archivos detecto en tu GitHub?**")
+                # Filtramos solo los .mp4 para no llenar la pantalla
+                videos_detectados = [f for f in archivos_en_github if f.endswith('.mp4')]
+                st.code(videos_detectados)
+                st.info("Asegúrate de que el nombre arriba coincida exactamente con uno de esta lista.")
+
             if st.checkbox(f"Marcar serie", key=ej, value=ya_hecho, disabled=ya_hecho):
                 if not ya_hecho:
                     ejecutar_descanso(ej, sec)
 else:
-    st.success("¡Descanso! 🛌 Recupera para la próxima semana.")
+    st.success("¡Descanso! 🛌")
 
 if st.button("🔄 Resetear día"):
     st.session_state.completados = []
-
     st.rerun()
-
-# Busca esta parte en tu código y añade la línea del print:
-with st.expander(f"🏋️ {ej}"):
-    if os.path.exists(archivo):
-        st.video(archivo)
-    else:
-        # Esto te dirá exactamente qué nombre está buscando la app
-        st.error(f"Error: Buscando el archivo exacto: '{archivo}'")
-        st.write(f"Archivos que SI detecto en la carpeta: {os.listdir('.')}")
