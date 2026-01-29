@@ -91,4 +91,14 @@ else:
 
 if st.button("🔄 Resetear día"):
     st.session_state.completados = []
+
     st.rerun()
+
+# Busca esta parte en tu código y añade la línea del print:
+with st.expander(f"🏋️ {ej}"):
+    if os.path.exists(archivo):
+        st.video(archivo)
+    else:
+        # Esto te dirá exactamente qué nombre está buscando la app
+        st.error(f"Error: Buscando el archivo exacto: '{archivo}'")
+        st.write(f"Archivos que SI detecto en la carpeta: {os.listdir('.')}")
