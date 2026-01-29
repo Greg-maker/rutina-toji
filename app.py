@@ -3,16 +3,36 @@ from datetime import date
 import time
 import os
 
-st.set_page_config(page_title="Toji Mode", page_icon="💪")
+# Configuración de la página
+st.set_page_config(page_title="Toji Mode", page_icon="💪", layout="centered")
 
-# --- LÓGICA DE RACHA ---
-inicio = date(2026, 1, 28)
+# --- LÓGICA DINÁMICA DE FECHA Y RACHA ---
+# Fecha de inicio: 28 de enero de 2026
+fecha_inicio = date(2026, 1, 28) 
 hoy = date.today()
-racha = (hoy - inicio).days + 1
 
+# Cálculo de racha: hoy es el día 1
+racha_actual = (hoy - fecha_inicio).days + 1
+
+# Traductor de días del sistema a español
+dias_traduccion = {
+    "Monday": "Lunes",
+    "Tuesday": "Martes",
+    "Wednesday": "Miércoles",
+    "Thursday": "Jueves",
+    "Friday": "Viernes",
+    "Saturday": "Sábado",
+    "Sunday": "Domingo"
+}
+nombre_dia_ingles = hoy.strftime("%A")
+dia_actual = dias_traduccion.get(nombre_dia_ingles, "Lunes")
+
+# --- INTERFAZ PRINCIPAL ---
 st.title("🔥 Toji Mode: On")
-st.metric(label="Racha de Entrenamiento", value=f"{racha} Días")
+st.metric(label="Racha de Entrenamiento", value=f"{racha_actual} Días")
+st.subheader(f"Hoy es {dia_actual} ({hoy.strftime('%d/%m/%Y')})")
 
+# Memoria de la sesión
 if "completados" not in st.session_state:
     st.session_state.completados = []
 
@@ -21,13 +41,13 @@ def ejecutar_descanso(nombre, segundos):
     for t in range(segundos, -1, -1):
         placeholder.subheader(f"⏳ Descanso: {t}s")
         time.sleep(1)
-    placeholder.success(f"¡Serie terminada!")
+    placeholder.success(f"¡Serie de {nombre} terminada!")
     st.balloons()
     if nombre not in st.session_state.completados:
         st.session_state.completados.append(nombre)
         st.rerun()
 
-# --- RUTINA Y NOMBRES DE ARCHIVOS ---
+# --- RUTINA Y ARCHIVOS MP4 ---
 rutinas = {
     "Lunes": [
         ("Press banca (3x8-10)", 90, "banca.mp4"),
@@ -68,36 +88,28 @@ rutinas = {
     ]
 }
 
-dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
-dia_actual = dias[hoy.weekday()]
-
-st.subheader(f"Hoy es {dia_actual}")
-
-# --- DETECTOR DE ARCHIVOS REALES (Para diagnóstico) ---
-archivos_en_github = os.listdir('.')
+# Detector de archivos para ayuda visual
+archivos_reales = os.listdir('.')
 
 if dia_actual in rutinas:
     for ej, sec, archivo in rutinas[dia_actual]:
         ya_hecho = ej in st.session_state.completados
         
         with st.expander(f"🏋️ {ej}"):
-            # Lógica de detección inteligente
+            # Lógica de video local
             if os.path.exists(archivo):
                 st.video(archivo)
             else:
-                st.error(f"❌ No se encuentra el archivo: **{archivo}**")
-                st.write("🔍 **¿Qué archivos detecto en tu GitHub?**")
-                # Filtramos solo los .mp4 para no llenar la pantalla
-                videos_detectados = [f for f in archivos_en_github if f.endswith('.mp4')]
-                st.code(videos_detectados)
-                st.info("Asegúrate de que el nombre arriba coincida exactamente con uno de esta lista.")
+                st.error(f"❌ No se encuentra: {archivo}")
+                st.write(f"📂 Archivos en GitHub: {[f for f in archivos_reales if f.endswith('.mp4')]}")
 
-            if st.checkbox(f"Marcar serie", key=ej, value=ya_hecho, disabled=ya_hecho):
+            if st.checkbox(f"Marcar serie completa", key=ej, value=ya_hecho, disabled=ya_hecho):
                 if not ya_hecho:
                     ejecutar_descanso(ej, sec)
 else:
-    st.success("¡Descanso! 🛌")
+    st.success("¡Día de descanso! 🛌 Aprovecha para recuperar.")
 
-if st.button("🔄 Resetear día"):
+st.divider()
+if st.button("🔄 Resetear progreso de hoy"):
     st.session_state.completados = []
     st.rerun()
