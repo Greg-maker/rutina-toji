@@ -1,5 +1,5 @@
 import streamlit as st
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 import time
 import os
 import pytz
@@ -29,7 +29,6 @@ def cargar_datos():
                 return json.load(f)
         except:
             pass
-    # Si no existe o falla, crear estructura inicial
     return {"historial": [], "fecha_inicio_racha": str(date.today())}
 
 def guardar_datos(datos):
@@ -38,28 +37,23 @@ def guardar_datos(datos):
 
 datos_usuario = cargar_datos()
 
-# --- LÓGICA DE TIEMPO (TIJUANA) ---
+# --- LÓGICA DE TIEMPO ---
 tz = pytz.timezone('America/Tijuana') 
 hoy_tj = datetime.now(tz)
 fecha_str = hoy_tj.strftime("%Y-%m-%d")
-dia_semana = hoy_tj.strftime("%A")
+dia_actual = {"Monday": "Lunes", "Tuesday": "Martes", "Wednesday": "Miércoles", 
+              "Thursday": "Jueves", "Friday": "Viernes", "Saturday": "Sábado", "Sunday": "Domingo"}.get(hoy_tj.strftime("%A"), "Lunes")
 
-dias_es = {"Monday": "Lunes", "Tuesday": "Martes", "Wednesday": "Miércoles", 
-           "Thursday": "Jueves", "Friday": "Viernes", "Saturday": "Sábado", "Sunday": "Domingo"}
-dia_actual = dias_es.get(dia_semana, "Lunes")
-
-# --- RUTINAS ---
+# --- RUTINAS (Simplificadas para el código) ---
 rutinas = {
-    "Lunes": [("Press de Banca", "4×8", 120, "Pecho"), ("Remo con Barra", "4×10", 90, "Espalda"), ("Press Militar", "3×10", 90, "Hombros"), ("Curl Bíceps", "3×12", 60, "Bíceps"), ("Press Francés", "3×12", 60, "Tríceps")],
-    "Martes": [("Sentadilla Barra", "4×10", 120, "Piernas"), ("Peso Muerto Rumano", "4×12", 90, "Isquios"), ("Zancadas", "3×10", 90, "Pierna"), ("Elevación Talones", "4×15", 60, "Pantorrillas")],
-    "Jueves": [("Press Inclinado", "4×12", 90, "Pecho Sup"), ("Remo a una mano", "4×12", 60, "Espalda"), ("Vuelos Laterales", "3×15", 60, "Hombro"), ("Martillo Manc.", "3×12", 60, "Bíceps"), ("Fondos", "3×fallo", 60, "Tríceps")],
-    "Viernes": [("Sentadilla Búlgara", "3×10", 90, "Piernas"), ("Step-ups", "3×12", 60, "Piernas"), ("Banca Cerrado", "3×12", 90, "Tríceps"), ("Remo Vertical", "3×12", 60, "Trapecio")]
+    "Lunes": [("Press de Banca", "4×8", 120, "Pecho"), ("Remo con Barra", "4×10", 90, "Espalda"), ("Press Militar", "3×10", 90, "Hombros")],
+    "Martes": [("Sentadilla Barra", "4×10", 120, "Piernas"), ("Peso Muerto Rumano", "4×12", 90, "Isquios"), ("Zancadas", "3×10", 90, "Pierna")],
+    "Jueves": [("Press Inclinado", "4×12", 90, "Pecho Sup"), ("Remo a una mano", "4×12", 60, "Espalda"), ("Vuelos Laterales", "3×15", 60, "Hombro")],
+    "Viernes": [("Sentadilla Búlgara", "3×10", 90, "Piernas"), ("Step-ups", "3×12", 60, "Piernas"), ("Banca Cerrado", "3×12", 90, "Tríceps")]
 }
 
 # --- HEADER Y RACHA ---
 st.title("🔥 TOJI MODE: OVERDRIVE 🦾")
-
-# Calcular racha basada en la fecha guardada
 fecha_inicio_obj = datetime.strptime(datos_usuario.get("fecha_inicio_racha", str(date.today())), "%Y-%m-%d").date()
 racha = (hoy_tj.date() - fecha_inicio_obj).days + 1
 
@@ -68,79 +62,60 @@ with col_a:
     st.metric("RACHA ACTUAL", f"{racha} DÍAS 🔥")
 with col_b:
     st.subheader(f"📍 {dia_actual}")
-    st.caption(hoy_tj.strftime('%d/%m/%Y'))
 
-# --- SIDEBAR (CONTROLES) ---
+# --- SIDEBAR ---
 with st.sidebar:
     st.header("⚙️ Ajustes")
-    if st.button("🔴 REINICIAR RACHA (A 1 DÍA)"):
+    if st.button("🔴 REINICIAR RACHA"):
         datos_usuario["fecha_inicio_racha"] = str(date.today())
         guardar_datos(datos_usuario)
         st.rerun()
-    
-    st.write("---")
-    if st.button("🔄 Borrar Todo el Historial"):
-        if os.path.exists(DB_FILE):
-            os.remove(DB_FILE)
-            st.rerun()
 
 # --- LÓGICA OVERDRIVE ---
-dias_entreno = ["Lunes", "Martes", "Jueves", "Viernes"]
+dias_entreno = list(rutinas.keys())
 es_descanso = dia_actual not in dias_entreno
 
-if "overdrive" not in st.session_state:
-    st.session_state.overdrive = False
-
-ejercicios_hoy = []
-titulo_entreno = ""
+if "overdrive" not in st.session_state: st.session_state.overdrive = False
 
 if es_descanso and not st.session_state.overdrive:
-    st.info("🛌 Día de descanso programado.")
+    st.info("🛌 Día de descanso.")
     if st.button("🔥 ACTIVAR MODO OVERDRIVE"):
         st.session_state.overdrive = True
         st.rerun()
 else:
-    if st.session_state.overdrive:
-        st.warning("⚡ MODO OVERDRIVE")
-        seleccion = st.selectbox("Elige rutina:", dias_entreno)
-        ejercicios_hoy = rutinas[seleccion]
-        titulo_entreno = f"Overdrive: {seleccion}"
-        if st.button("❌ Salir"):
-            st.session_state.overdrive = False
-            st.rerun()
-    else:
-        ejercicios_hoy = rutinas.get(dia_actual, [])
-        titulo_entreno = f"Rutina de {dia_actual}"
+    seleccion = st.selectbox("Rutina:", dias_entreno) if st.session_state.overdrive else dia_actual
+    ejercicios_hoy = rutinas.get(seleccion, [])
 
-# --- ENTRENAMIENTO ---
-if ejercicios_hoy:
-    st.divider()
-    st.subheader(titulo_entreno)
-    
+    # --- ENTRENAMIENTO ---
     for nombre, reps, desc, musculo in ejercicios_hoy:
         with st.expander(f"🏋️ {nombre} ({reps})"):
-            st.caption(f"🎯 Músculo: {musculo}")
-            c1, c2 = st.columns(2)
-            with c1:
-                peso = st.number_input(f"Peso (kg)", min_value=0.0, step=0.5, key=f"p_{nombre}")
-            with c2:
-                if st.button(f"Registrar", key=f"btn_{nombre}"):
-                    nuevo = {"fecha": fecha_str, "ejercicio": nombre, "peso": peso}
-                    datos_usuario["historial"].append(nuevo)
-                    guardar_datos(datos_usuario)
-                    
-                    msg = st.empty()
-                    prog = st.progress(0)
-                    for s in range(desc, -1, -1):
-                        msg.write(f"⏳ Descanso: {s}s")
-                        prog.progress((desc - s) / desc)
-                        time.sleep(1)
-                    msg.success("¡Siguiente!")
-                    st.balloons()
+            u1, u2 = st.columns([2, 1])
+            with u2:
+                unidad = st.radio("Unidad", ["Kg", "Lbs"], key=f"u_{nombre}", horizontal=True)
+            with u1:
+                valor_input = st.number_input(f"Peso en {unidad}", min_value=0.0, step=0.5, key=f"p_{nombre}")
+            
+            if st.button(f"Registrar Serie", key=f"btn_{nombre}"):
+                # Convertir a KG para la base de datos si es Lbs
+                peso_kg = round(valor_input / 2.20462, 2) if unidad == "Lbs" else valor_input
+                
+                nuevo = {"fecha": fecha_str, "ejercicio": nombre, "peso": peso_kg, "unidad_orig": unidad, "valor_orig": valor_input}
+                datos_usuario["historial"].append(nuevo)
+                guardar_datos(datos_usuario)
+                
+                # Timer
+                msg = st.empty()
+                prog = st.progress(0)
+                for s in range(desc, -1, -1):
+                    msg.write(f"⏳ Descanso: {s}s")
+                    prog.progress((desc - s) / desc)
+                    time.sleep(1)
+                st.balloons()
+                st.rerun()
 
 # --- PROGRESO ---
 st.divider()
-st.subheader("📈 Evolución de Fuerza")
+st.subheader("📈 Evolución de Fuerza (Kg)")
 if datos_usuario["historial"]:
     df = pd.DataFrame(datos_usuario["historial"])
     df['fecha'] = pd.to_datetime(df['fecha'])
