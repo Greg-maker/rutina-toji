@@ -3,137 +3,174 @@ from datetime import date, datetime
 import time
 import os
 import pytz
+import json
+import pandas as pd
 import random
 
-# --- CONFIGURACIÓN ---
-st.set_page_config(page_title="TOJI MODE", page_icon="🦾", layout="centered")
+# --- CONFIGURACIÓN DE PÁGINA ---
+st.set_page_config(page_title="TOJI MODE PRO", page_icon="🦾", layout="centered")
 
-# --- FRASES MOTIVACIONALES ---
-frases = [
-    "No te detengas cuando canses, detente cuando hayas terminado. 🦾",
-    "El dolor es temporal, el orgullo es para siempre. 🔥",
-    "¿Eres el más fuerte porque entrenas, o entrenas porque eres el más fuerte? 💀",
-    "Un paso más cerca de la perfección física. 🦍",
-    "Tu cuerpo es tu templo, y hoy lo has honrado. 🏛️"
-]
+# --- ESTILO VISUAL (CSS) ---
+st.markdown("""
+    <style>
+    .main { background-color: #0e1117; }
+    .stMetric { background-color: #1e1e1e; padding: 15px; border-radius: 10px; border: 1px solid #333; }
+    .stExpander { border: 1px solid #444; border-radius: 8px; background-color: #161b22; }
+    div.stButton > button:first-child { background-color: #d32f2f; color: white; border-radius: 5px; width: 100%; }
+    </style>
+    """, unsafe_allow_html=True)
 
-# --- LÓGICA TIJUANA ---
+# --- BASE DE DATOS LOCAL (JSON) ---
+DB_FILE = "progreso_toji.json"
+
+def cargar_datos():
+    if os.path.exists(DB_FILE):
+        try:
+            with open(DB_FILE, "r") as f:
+                return json.load(f)
+        except:
+            return {"historial": []}
+    return {"historial": []}
+
+def guardar_datos(datos):
+    with open(DB_FILE, "w") as f:
+        json.dump(datos, f, indent=4)
+
+datos_usuario = cargar_datos()
+
+# --- LÓGICA DE TIEMPO (TIJUANA) ---
 tz = pytz.timezone('America/Tijuana') 
-hoy_tijuana = datetime.now(tz)
-fecha_hoy = hoy_tijuana.date()
-fecha_inicio = date(2026, 1, 28) 
-racha_actual = (fecha_hoy - fecha_inicio).days + 1
+hoy_tj = datetime.now(tz)
+fecha_str = hoy_tj.strftime("%Y-%m-%d")
+dia_semana = hoy_tj.strftime("%A")
 
-dias_espanol = {
-    "Monday": "Lunes", "Tuesday": "Martes", "Wednesday": "Miércoles",
-    "Thursday": "Jueves", "Friday": "Viernes", "Saturday": "Sábado", "Sunday": "Domingo"
-}
-dia_actual_es = dias_espanol.get(hoy_tijuana.strftime("%A"), "Lunes")
+dias_es = {"Monday": "Lunes", "Tuesday": "Martes", "Wednesday": "Miércoles", 
+           "Thursday": "Jueves", "Friday": "Viernes", "Saturday": "Sábado", "Sunday": "Domingo"}
+dia_actual = dias_es.get(dia_semana, "Lunes")
 
-# --- ESTADO DE SESIÓN ---
-if "series_completadas" not in st.session_state:
-    st.session_state.series_completadas = {}
-
-st.title("🔥 TOJI MODE: ON 🦾")
-st.metric(label="Racha de Entrenamiento", value=f"{racha_actual} Días")
-st.subheader(f"📍 {dia_actual_es} {fecha_hoy.strftime('%d/%m/%Y')}")
-
-def buscar_video(nombre_buscado):
-    archivos_en_carpeta = os.listdir('.')
-    for f in archivos_en_carpeta:
-        if f.lower() == nombre_buscado.lower():
-            return f
-    return None
-
-def iniciar_descanso(seg):
-    p = st.empty()
-    for t in range(seg, -1, -1):
-        p.subheader(f"⏳ Descanso: {t}s")
-        time.sleep(1)
-    p.success("¡Siguiente serie!")
-    st.balloons()
-
-# --- RUTINA ACTUALIZADA (Lunes a Viernes) ---
-# Formato: (Nombre, Reps, Descanso, Archivo, Músculo, Total Series)
+# --- RUTINAS ---
 rutinas = {
     "Lunes": [
-        ("Press banca", "3 × 8–10", 90, "banca.mp4", "Pecho Mayor y Tríceps", 3),
-        ("Press inclinado", "2 × 10", 90, "inclinado.mp4", "Pecho Superior", 2),
-        ("Flexiones lentas", "2 × al fallo", 60, "flexiones.mp4", "Pecho y Core", 2),
-        ("Press militar", "2 × 8", 90, "militar.mp4", "Hombros", 2),
-        ("Fondos entre bancas", "2 × 12", 60, "fondos.mp4", "Tríceps", 2)
+        ("Press de Banca", "4 × 8–10", 120, "Pecho/Tríceps"),
+        ("Remo con Barra", "4 × 10", 90, "Espalda"),
+        ("Press Militar", "3 × 10", 90, "Hombros"),
+        ("Curl de Bíceps", "3 × 12", 60, "Bíceps"),
+        ("Press Francés", "3 × 12", 60, "Tríceps")
     ],
     "Martes": [
-        ("Remo con barra", "3 × 8–10", 90, "remo_barra.mp4", "Dorsales", 3),
-        ("Peso muerto rumano", "2 × 6–8", 120, "rumano.mp4", "Isquiotibiales", 2),
-        ("Remo con mancuernas", "2 × 10", 90, "remo_man.mp4", "Dorsales", 2),
-        ("Curl bíceps barra", "2 × 10", 60, "curl_barra.mp4", "Bíceps", 2),
-        ("Curl martillo", "2 × 12", 60, "martillo.mp4", "Bíceps", 2)
-    ],
-    "Miércoles": [
-        ("Sentadilla con barra", "3 × 8", 120, "sentadilla.mp4", "Cuádriceps", 3),
-        ("Sentadilla búlgara", "2 × 12", 90, "bulgara.mp4", "Cuádriceps", 2),
-        ("Zancadas", "2 × 10 por pierna", 90, "zancadas.mp4", "Glúteos", 2),
-        ("Elevación de talón", "2 × 15", 60, "talon.mp4", "Pantorrillas", 2),
-        ("Plancha", "2 × 45–60 s", 45, "plancha.mp4", "Core", 2),
-        ("Elevaciones de piernas", "2 × 12", 45, "elev_piernas.mp4", "Abdominales", 2)
+        ("Sentadilla Barra", "4 × 10", 120, "Piernas"),
+        ("Peso Muerto Rumano", "4 × 12", 90, "Isquios"),
+        ("Zancadas", "3 × 10", 90, "Glúteo/Pierna"),
+        ("Elevación Talones", "4 × 15", 60, "Pantorrillas")
     ],
     "Jueves": [
-        ("Elevaciones laterales", "3 × 12", 45, "laterales.mp4", "Hombro Lateral", 3),
-        ("Pájaros", "2 × 12", 60, "pajaros.mp4", "Hombro Posterior", 2),
-        ("Fondos con banca", "2 × 12", 60, "fondos_banca.mp4", "Tríceps", 2),
-        ("Curl concentrado", "1 × 12", 60, "concentrado.mp4", "Bíceps", 1),
-        ("Plancha lateral", "2 × 30 s", 45, "plancha_lat.mp4", "Oblicuos", 2),
-        ("Crunch lento", "2 × 15", 45, "crunch.mp4", "Abdominales", 2)
+        ("Press Inclinado", "4 × 12", 90, "Pecho Superior"),
+        ("Remo a una mano", "4 × 12", 60, "Espalda"),
+        ("Vuelos Laterales", "3 × 15", 60, "Hombro Lateral"),
+        ("Martillo Manc.", "3 × 12", 60, "Braquial"),
+        ("Fondos", "3 × fallo", 60, "Tríceps")
     ],
     "Viernes": [
-        ("Remo barra (ligero)", "2 × 12", 90, "remo_ligero.mp4", "Espalda", 2),
-        ("Pullover mancuerna", "2 × 12", 90, "pullover.mp4", "Dorsal y Pecho", 2),
-        ("Curl bíceps mancuernas", "2 × 12", 60, "biceps_man.mp4", "Bíceps", 2),
-        ("Hollow hold", "2 × 30 s", 45, "hollow.mp4", "Core Estático", 2),
-        ("Crunch lento", "2 × 15", 45, "crunch.mp4", "Abdomen", 2)
+        ("Sentadilla Búlgara", "3 × 10", 90, "Cuádriceps"),
+        ("Step-ups", "3 × 12", 60, "Piernas"),
+        ("Banca Cerrado", "3 × 12", 90, "Tríceps"),
+        ("Remo Vertical", "3 × 12", 60, "Trapecios")
     ]
 }
 
-# Solo marcar como descanso Sábado y Domingo
-es_descanso = dia_actual_es in ["Sábado", "Domingo"]
+# --- HEADER ---
+st.title("🔥 TOJI MODE: OVERDRIVE 🦾")
+fecha_inicio = date(2026, 1, 28)
+racha = (hoy_tj.date() - fecha_inicio).days + 1
 
-if not es_descanso:
-    ejercicios_del_dia = rutinas.get(dia_actual_es, [])
-    total_ejercicios = len(ejercicios_del_dia)
-    ejercicios_completados_count = 0
+col_a, col_b = st.columns(2)
+with col_a:
+    st.metric("RACHA", f"{racha} DÍAS")
+with col_b:
+    st.subheader(f"📍 {dia_actual}")
+    st.caption(hoy_tj.strftime('%d/%m/%Y'))
 
-    for ej, reps, sec, archivo_nom, musculo, total_series in ejercicios_del_dia:
-        progreso = st.session_state.series_completadas.get(ej, 0)
-        
-        # Expander visual
-        with st.expander(f"{'✅' if progreso >= total_series else '🏋️'} {ej} ({progreso}/{total_series})"):
-            st.info(f"🎯 **Músculo:** {musculo}")
-            st.write(f"**Objetivo:** {reps}")
-            
-            video = buscar_video(archivo_nom)
-            if video: st.video(video)
+# --- LÓGICA DE DÍAS Y OVERDRIVE ---
+dias_entreno = ["Lunes", "Martes", "Jueves", "Viernes"]
+es_descanso = dia_actual not in dias_entreno
 
-            if progreso < total_series:
-                if st.button(f"Completar Serie {progreso + 1}", key=f"btn_{ej}"):
-                    st.session_state.series_completadas[ej] = progreso + 1
-                    iniciar_descanso(sec)
-                    st.rerun()
-            else:
-                st.success("¡Ejercicio terminado!")
-                ejercicios_completados_count += 1
+if "overdrive" not in st.session_state:
+    st.session_state.overdrive = False
 
-    # --- MENSAJE FINAL DEL DÍA ---
-    if ejercicios_completados_count == total_ejercicios and total_ejercicios > 0:
-        st.divider()
-        st.balloons()
-        st.success("## 🔥 ¡DÍA COMPLETADO!")
-        st.info(random.choice(frases))
+# --- SELECCIÓN DE RUTINA ---
+ejercicios_hoy = []
+titulo_entreno = ""
 
+if es_descanso and not st.session_state.overdrive:
+    st.info("🛌 Hoy es descanso programado. El cuerpo de un Zenin necesita recuperarse.")
+    if st.button("🔥 ACTIVAR MODO OVERDRIVE"):
+        st.session_state.overdrive = True
+        st.rerun()
 else:
-    st.success("¡Día de descanso! 🛌 Tiempo de reparar el tejido muscular.")
+    if st.session_state.overdrive:
+        st.warning("⚡ MODO OVERDRIVE: Elige una rutina para realizar hoy.")
+        seleccion = st.selectbox("¿Qué rutina vas a ejecutar?", dias_entreno)
+        ejercicios_hoy = rutinas[seleccion]
+        titulo_entreno = f"Overdrive: {seleccion}"
+        if st.button("❌ Desactivar Overdrive"):
+            st.session_state.overdrive = False
+            st.rerun()
+    else:
+        ejercicios_hoy = rutinas.get(dia_actual, [])
+        titulo_entreno = f"Rutina de {dia_actual}"
 
+# --- LISTA DE EJERCICIOS ---
+if ejercicios_hoy:
+    st.divider()
+    
+
+[Image of anatomical chart of human muscles]
+
+    for nombre, reps, desc, musculo in ejercicios_hoy:
+        with st.expander(f"🏋️ {nombre} ({reps})"):
+            st.write(f"🎯 **Objetivo:** {musculo}")
+            
+            c1, c2 = st.columns(2)
+            with c1:
+                peso = st.number_input(f"Peso (kg)", min_value=0.0, step=0.5, key=f"p_{nombre}")
+            with c2:
+                if st.button(f"Registrar Serie", key=f"btn_{nombre}"):
+                    # Guardar registro
+                    nuevo = {"fecha": fecha_str, "ejercicio": nombre, "peso": peso}
+                    datos_usuario["historial"].append(nuevo)
+                    guardar_datos(datos_usuario)
+                    
+                    # Temporizador visual
+                    msg = st.empty()
+                    prog = st.progress(0)
+                    for s in range(desc, -1, -1):
+                        msg.write(f"⏳ Descanso: {s}s")
+                        prog.progress((desc - s) / desc)
+                        time.sleep(1)
+                    msg.success("¡SIGUIENTE SERIE! 🔥")
+                    st.balloons()
+
+# --- ANÁLISIS DE PROGRESO ---
 st.divider()
-if st.button("🔄 Resetear progreso de hoy"):
-    st.session_state.series_completadas = {}
-    st.rerun()
+st.subheader("📈 Evolución de Fuerza")
+if datos_usuario["historial"]:
+    df = pd.DataFrame(datos_usuario["historial"])
+    df['fecha'] = pd.to_datetime(df['fecha'])
+    
+    lista_ejercicios = df['ejercicio'].unique()
+    sel_ej = st.selectbox("Ver gráfica de:", lista_ejercicios)
+    
+    df_plot = df[df['ejercicio'] == sel_ej].sort_values('fecha')
+    st.line_chart(df_plot.set_index('fecha')['peso'])
+else:
+    st.caption("No hay datos registrados aún. Completa tu primera serie.")
+
+# --- SIDEBAR & RESET ---
+with st.sidebar:
+    st.header("Configuración")
+    if st.button("🔄 Reiniciar Todo el Historial"):
+        if os.path.exists(DB_FILE):
+            os.remove(DB_FILE)
+            st.rerun()
+    st.write("---")
+    st.write("Creado para el 0.1% que no se rinde.")
