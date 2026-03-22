@@ -5,7 +5,6 @@ import os
 import pytz
 import json
 import pandas as pd
-import random
 
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="TOJI MODE PRO", page_icon="🦾", layout="centered")
@@ -108,8 +107,8 @@ if es_descanso and not st.session_state.overdrive:
         st.rerun()
 else:
     if st.session_state.overdrive:
-        st.warning("⚡ MODO OVERDRIVE: Elige una rutina para realizar hoy.")
-        seleccion = st.selectbox("¿Qué rutina vas a ejecutar?", dias_entreno)
+        st.warning("⚡ MODO OVERDRIVE ACTIVADO")
+        seleccion = st.selectbox("Elige rutina:", dias_entreno)
         ejercicios_hoy = rutinas[seleccion]
         titulo_entreno = f"Overdrive: {seleccion}"
         if st.button("❌ Desactivar Overdrive"):
@@ -122,10 +121,9 @@ else:
 # --- LISTA DE EJERCICIOS ---
 if ejercicios_hoy:
     st.divider()
+    # Para ver los músculos a trabajar hoy
+    st.write(f"### {titulo_entreno}")
     
-
-[Image of anatomical chart of human muscles]
-
     for nombre, reps, desc, musculo in ejercicios_hoy:
         with st.expander(f"🏋️ {nombre} ({reps})"):
             st.write(f"🎯 **Objetivo:** {musculo}")
@@ -135,19 +133,17 @@ if ejercicios_hoy:
                 peso = st.number_input(f"Peso (kg)", min_value=0.0, step=0.5, key=f"p_{nombre}")
             with c2:
                 if st.button(f"Registrar Serie", key=f"btn_{nombre}"):
-                    # Guardar registro
                     nuevo = {"fecha": fecha_str, "ejercicio": nombre, "peso": peso}
                     datos_usuario["historial"].append(nuevo)
                     guardar_datos(datos_usuario)
                     
-                    # Temporizador visual
                     msg = st.empty()
                     prog = st.progress(0)
                     for s in range(desc, -1, -1):
                         msg.write(f"⏳ Descanso: {s}s")
                         prog.progress((desc - s) / desc)
                         time.sleep(1)
-                    msg.success("¡SIGUIENTE SERIE! 🔥")
+                    msg.success("¡DALE! 🔥")
                     st.balloons()
 
 # --- ANÁLISIS DE PROGRESO ---
@@ -156,21 +152,15 @@ st.subheader("📈 Evolución de Fuerza")
 if datos_usuario["historial"]:
     df = pd.DataFrame(datos_usuario["historial"])
     df['fecha'] = pd.to_datetime(df['fecha'])
-    
     lista_ejercicios = df['ejercicio'].unique()
-    sel_ej = st.selectbox("Ver gráfica de:", lista_ejercicios)
-    
+    sel_ej = st.selectbox("Ver evolución de:", lista_ejercicios)
     df_plot = df[df['ejercicio'] == sel_ej].sort_values('fecha')
     st.line_chart(df_plot.set_index('fecha')['peso'])
 else:
-    st.caption("No hay datos registrados aún. Completa tu primera serie.")
+    st.caption("Aún no hay datos. Registra tu primera serie para ver la gráfica.")
 
-# --- SIDEBAR & RESET ---
 with st.sidebar:
-    st.header("Configuración")
-    if st.button("🔄 Reiniciar Todo el Historial"):
+    if st.button("🔄 Borrar Historial"):
         if os.path.exists(DB_FILE):
             os.remove(DB_FILE)
             st.rerun()
-    st.write("---")
-    st.write("Creado para el 0.1% que no se rinde.")
