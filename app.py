@@ -159,7 +159,3 @@ with st.sidebar:
     
     st.divider()
     st.caption("TOJI MODE PRO - Sin excusas.")
-        st.rerun()
-    if st.button("🔄 Borrar Historial"):
-        if os.path.exists(DB_FILE): os.remove(DB_FILE)
-        st.rerun()
